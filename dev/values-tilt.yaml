@@ -1,0 +1,17 @@
+# Overrides for Tilt + kind local dev (local image, no pull, TLS for wss://)
+image:
+  repository: blankdots/cnpg-dashboard
+  tag: latest
+  pullPolicy: Never
+
+serviceAccount:
+  namespace: "default"  # Explicit for RBAC ClusterRoleBinding subject
+
+tls:
+  enabled: true
+  secretName: cnpg-dashboard-tls
+  skipCertResources: true  # Apply via local_resource after CRDs exist
+
+log:
+  level: "debug"
+  format: "json"  # JSON logs for Kubernetes

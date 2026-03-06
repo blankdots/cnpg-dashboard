@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cnpg-dashboard-tls
+  namespace: default
+spec:
+  secretName: cnpg-dashboard-tls
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - localhost
+    - 127.0.0.1
+    - cnpg-dashboard
+    - cnpg-dashboard.default
+    - cnpg-dashboard.default.svc.cluster.local

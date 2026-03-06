@@ -1,0 +1,4 @@
+# metrics-server values for kind (kubelet uses self-signed certs)
+args:
+  - --kubelet-insecure-tls
+  - --kubelet-preferred-address-types=InternalIP

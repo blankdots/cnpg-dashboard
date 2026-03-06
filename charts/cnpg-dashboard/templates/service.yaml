@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cnpg-dashboard.fullname" . }}
+  labels:
+    {{- include "cnpg-dashboard.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ if .Values.tls.enabled }}{{ .Values.tls.port }}{{ else }}{{ .Values.service.port }}{{ end }}
+      targetPort: {{ if .Values.tls.enabled }}https{{ else }}http{{ end }}
+      protocol: TCP
+      name: {{ if .Values.tls.enabled }}https{{ else }}http{{ end }}
+  selector:
+    {{- include "cnpg-dashboard.selectorLabels" . | nindent 4 }}
