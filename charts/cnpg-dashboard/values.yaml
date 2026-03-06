@@ -1,0 +1,78 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/blankdots/cnpg-dashboard
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+  # Namespace for ClusterRoleBinding subject (defaults to Release.Namespace)
+  namespace: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 65534
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65534
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# TLS for secure WebSockets (wss://). Uses cert-manager Certificate.
+tls:
+  enabled: false
+  secretName: ""
+  port: 8443
+  # When true, skip rendering ClusterIssuer/Certificate (apply them separately after CRDs exist, e.g. in Tilt)
+  skipCertResources: false
+
+# Gateway API (gateway.networking.k8s.io) HTTPRoute. TLS is configured on the Gateway listener.
+gatewayApi:
+  enabled: false
+  # Gateway to attach the HTTPRoute to (must exist; TLS/HTTPS is configured on the Gateway).
+  gateway:
+    name: ""
+    namespace: ""  # empty = same as Release.Namespace
+  # Hostnames for this route (optional; omit for all hostnames on the listener).
+  hostnames: []
+  # When your Gateway has an HTTPS listener, set listenerName to that listener's name (e.g. "https") so traffic is served over TLS.
+  tls:
+    listenerName: ""  # e.g. "https" to bind to the Gateway's HTTPS listener
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+
+log:
+  level: "info"
+  format: "json"  # "json" or "text" (text for local dev)
