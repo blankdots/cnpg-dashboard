@@ -3,7 +3,7 @@ module github.com/blankdots/cnpg-dashboard
 go 1.26.0
 
 require (
-	github.com/coder/websocket v1.8.12
+	github.com/coder/websocket v1.8.14
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3
 )
