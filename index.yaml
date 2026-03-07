@@ -2,6 +2,18 @@ apiVersion: v1
 entries:
   cnpg-dashboard:
   - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-03-07T08:01:30.236596516Z"
+    description: CNPG Dashboard - CloudNativePG clusters and Barman object stores
+      UI
+    digest: 11cad026835cec88a0e2493290955d930e72b561dfe0c303005dc53d8b103154
+    kubeVersion: '>= 1.26.0'
+    name: cnpg-dashboard
+    type: application
+    urls:
+    - https://github.com/blankdots/cnpg-dashboard/releases/download/cnpg-dashboard-0.2.1/cnpg-dashboard-0.2.1.tgz
+    version: 0.2.1
+  - apiVersion: v2
     appVersion: 0.2.0
     created: "2026-03-07T07:43:42.742283364Z"
     description: CNPG Dashboard - CloudNativePG clusters and Barman object stores
@@ -13,4 +25,4 @@ entries:
     urls:
     - https://github.com/blankdots/cnpg-dashboard/releases/download/cnpg-dashboard-0.2.0/cnpg-dashboard-0.2.0.tgz
     version: 0.2.0
-generated: "2026-03-07T07:43:42.742290217Z"
+generated: "2026-03-07T08:01:30.236603826Z"
