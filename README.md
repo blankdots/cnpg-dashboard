@@ -2,16 +2,7 @@
 
 A web dashboard for CloudNativePG clusters and Barman object stores. Watches CNPG CRDs via Kubernetes informers and provides a real-time UI with WebSocket updates.
 
-## Structure
-
-Mirrors [minimal-kube-app](https://github.com/blankdots/minimal-kube-app):
-
-- **cmd/dashboard** — main entry point
-- **internal/** — clients (k8s client), api (HTTP handlers), ws (WebSocket hub + commands), store, watcher
-- **frontend/** — React + Vite app
-- **charts/cnpg-dashboard** — Helm chart for deployment
-- **dev/** — kind config, Tilt overrides
-- **.github/workflows** — CI (tests, lint, container publish)
+![Dashboard](dashboard.png)
 
 ## Prerequisites
 

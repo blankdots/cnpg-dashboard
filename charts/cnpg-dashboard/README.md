@@ -12,15 +12,21 @@ Web UI for [CloudNativePG](https://cloudnative-pg.io/) clusters and Barman objec
 
 ## Install
 
+From the [GitHub](https://github.com/blankdots/cnpg-dashboard) repo:
+
 ```bash
-helm repo add cnpg-dashboard https://blankdots.github.io/cnpg-dashboard  # if published
-helm install cnpg-dashboard ./charts/cnpg-dashboard -n cnpg-dashboard --create-namespace
+# Clone and install from the chart in the repo
+git clone https://github.com/blankdots/cnpg-dashboard.git
+cd cnpg-dashboard
+helm install cnpg-dashboard charts/cnpg-dashboard -n cnpg-dashboard --create-namespace
 ```
 
-Or from the repo root:
+Or add the Helm repo (when [published to GitHub Pages](https://github.com/blankdots/cnpg-dashboard)):
 
 ```bash
-helm install cnpg-dashboard charts/cnpg-dashboard -n cnpg-dashboard --create-namespace
+helm repo add cnpg-dashboard https://blankdots.github.io/cnpg-dashboard
+helm repo update
+helm install cnpg-dashboard cnpg-dashboard/cnpg-dashboard -n cnpg-dashboard --create-namespace
 ```
 
 ## Configuration
