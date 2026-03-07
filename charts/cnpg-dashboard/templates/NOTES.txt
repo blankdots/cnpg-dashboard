@@ -1,0 +1,9 @@
+CNPG Dashboard has been installed.
+
+To access the dashboard, run:
+  kubectl port-forward svc/{{ include "cnpg-dashboard.fullname" . }} 8080:8080
+
+Then open http://localhost:8080 in your browser.
+
+The dashboard watches CloudNativePG Cluster and BarmanObjectStore resources.
+Ensure the CNPG operator is installed in your cluster.
