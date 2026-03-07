@@ -1,4 +1,4 @@
-FROM docker.io/node:22-alpine AS frontend
+FROM docker.io/node:24-alpine AS frontend
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
