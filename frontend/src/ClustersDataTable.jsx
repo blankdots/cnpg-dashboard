@@ -65,7 +65,7 @@ function DragHandle({ id }) {
         border: "none",
         borderRadius: 6,
         cursor: "grab",
-        color: "#52525b",
+        color: "var(--cnpg-text-muted)",
       }}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}>
@@ -84,8 +84,8 @@ function ColumnCheckbox({ checked }) {
         flexShrink: 0,
         borderRadius: 4,
         border: "1.5px solid",
-        borderColor: checked ? "#a78bfa" : "#52525b",
-        background: checked ? "#a78bfa" : "transparent",
+        borderColor: checked ? "var(--cnpg-checkbox-checked)" : "var(--cnpg-checkbox-border)",
+        background: checked ? "var(--cnpg-checkbox-checked)" : "transparent",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -105,7 +105,7 @@ function DraggableRow({ row, setSelected, isLast }) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    borderBottom: isLast ? "none" : "1px solid rgba(39,39,42,0.6)",
+    borderBottom: isLast ? "none" : "1px solid var(--cnpg-border-subtle)",
     cursor: "pointer",
     opacity: isDragging ? 0.8 : 1,
     zIndex: isDragging ? 10 : 0,
@@ -115,7 +115,7 @@ function DraggableRow({ row, setSelected, isLast }) {
     <tr
       ref={setNodeRef}
       style={style}
-      onMouseEnter={(e) => { if (!isDragging) e.currentTarget.style.background = "rgba(39,39,42,0.5)"; }}
+      onMouseEnter={(e) => { if (!isDragging) e.currentTarget.style.background = "var(--cnpg-bg-card-hover)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
       onClick={() => setSelected(row.original)}>
       {row.getVisibleCells().map((cell) => (
@@ -199,12 +199,12 @@ export function ClustersDataTable({ data, setSelected, send }) {
   }
 
   return (
-    <div style={{ borderRadius: 12, overflow: "visible", background: "#18181b", border: "1px solid #27272a" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 12px", borderBottom: "1px solid #27272a", gap: 8 }}>
+    <div style={{ borderRadius: 12, overflow: "visible", background: "var(--cnpg-bg-card)", border: "1px solid var(--cnpg-border)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 12px", borderBottom: "1px solid var(--cnpg-border)", gap: 8 }}>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, fontSize: 12, border: "1px solid #3f3f46", background: "#27272a", color: "#d4d4d8", cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, fontSize: 12, border: "1px solid var(--cnpg-border)", background: "var(--cnpg-bg-tab)", color: "var(--cnpg-text-secondary)", cursor: "pointer" }}>
               <Icon d={P.settings} size={14} />
               View
             </button>
@@ -214,9 +214,9 @@ export function ClustersDataTable({ data, setSelected, send }) {
               side="bottom"
               sideOffset={8}
               align="end"
-              style={{ minWidth: 180, borderRadius: 12, overflow: "hidden", background: "#27272a", border: "1px solid #3f3f46", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", padding: 4 }}>
-              <DropdownMenu.Label style={{ fontSize: 11, color: "#71717a", padding: "8px 12px" }}>Toggle columns</DropdownMenu.Label>
-              <DropdownMenu.Separator style={{ height: 1, margin: "4px 0", background: "#3f3f46" }} />
+              style={{ minWidth: 180, borderRadius: 12, overflow: "hidden", background: "var(--cnpg-bg-card)", border: "1px solid var(--cnpg-border)", boxShadow: "0 8px 24px rgba(0,0,0,0.2)", padding: 4 }}>
+              <DropdownMenu.Label style={{ fontSize: 11, color: "var(--cnpg-text-muted)", padding: "8px 12px" }}>Toggle columns</DropdownMenu.Label>
+              <DropdownMenu.Separator style={{ height: 1, margin: "4px 0", background: "var(--cnpg-border)" }} />
               {table.getAllColumns()
                 .filter((col) => typeof col.accessorFn !== "undefined" && col.getCanHide())
                 .map((col) => (
@@ -224,7 +224,7 @@ export function ClustersDataTable({ data, setSelected, send }) {
                     key={col.id}
                     checked={col.getIsVisible()}
                     onCheckedChange={(v) => col.toggleVisibility(!!v)}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", fontSize: 12, color: "#d4d4d8", cursor: "pointer", outline: "none", background: "transparent", border: "none", borderRadius: 6 }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", fontSize: 12, color: "var(--cnpg-text-secondary)", cursor: "pointer", outline: "none", background: "transparent", border: "none", borderRadius: 6 }}
                     onSelect={(e) => e.preventDefault()}>
                     <ColumnCheckbox checked={col.getIsVisible()} />
                     {col.columnDef.header}
@@ -253,7 +253,7 @@ export function ClustersDataTable({ data, setSelected, send }) {
             </colgroup>
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} style={{ borderBottom: "1px solid #27272a" }}>
+                <tr key={headerGroup.id} style={{ borderBottom: "1px solid var(--cnpg-border)" }}>
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
@@ -263,7 +263,7 @@ export function ClustersDataTable({ data, setSelected, send }) {
                         fontSize: 11,
                         textTransform: "uppercase",
                         letterSpacing: "0.08em",
-                        color: "#71717a",
+                        color: "var(--cnpg-text-muted)",
                         fontWeight: 500,
                         cursor: header.column.getCanSort() ? "pointer" : "default",
                         userSelect: header.column.getCanSort() ? "none" : "auto",
@@ -272,7 +272,7 @@ export function ClustersDataTable({ data, setSelected, send }) {
                       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                         {header.column.getCanSort() && (
-                          <span style={{ color: "#52525b", fontSize: 10 }}>
+                          <span style={{ color: "var(--cnpg-text-muted)", fontSize: 10 }}>
                             {header.column.getIsSorted() === "asc" ? " ↑" : header.column.getIsSorted() === "desc" ? " ↓" : " ⇅"}
                           </span>
                         )}
@@ -296,7 +296,7 @@ export function ClustersDataTable({ data, setSelected, send }) {
                 </SortableContext>
               ) : (
                 <tr>
-                  <td colSpan={table.getVisibleLeafColumns().length} style={{ padding: 24, textAlign: "center", fontSize: 12, color: "#71717a" }}>
+                  <td colSpan={table.getVisibleLeafColumns().length} style={{ padding: 24, textAlign: "center", fontSize: 12, color: "var(--cnpg-text-muted)" }}>
                     No clusters found.
                   </td>
                 </tr>

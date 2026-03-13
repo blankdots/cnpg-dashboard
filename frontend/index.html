@@ -8,9 +8,56 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-      :root { --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, monospace; }
+      :root {
+        --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+      }
       html, body, #root { margin: 0; padding: 0; min-height: 100%; }
-      body { background: #09090b; font-family: var(--font-sans); }
+      body {
+        font-family: var(--font-sans);
+        background: var(--cnpg-bg-page);
+        color: var(--cnpg-text);
+      }
+      /* Dark theme (default) */
+      body.theme-dark, body:not(.theme-light) {
+        --cnpg-bg-page: #09090b;
+        --cnpg-bg-nav: rgba(9,9,11,0.9);
+        --cnpg-bg-card: #18181b;
+        --cnpg-bg-card-hover: rgba(39,39,42,0.5);
+        --cnpg-bg-input: #18181b;
+        --cnpg-bg-tab: #3f3f46;
+        --cnpg-border: #27272a;
+        --cnpg-border-subtle: rgba(63,63,70,0.5);
+        --cnpg-text: #f4f4f5;
+        --cnpg-text-secondary: #e4e4e7;
+        --cnpg-text-muted: #71717a;
+        --cnpg-text-dim: #a1a1aa;
+        --cnpg-accent: #a78bfa;
+        --cnpg-modal-overlay: rgba(0,0,0,0.75);
+        --cnpg-modal-bg: #18181b;
+        --cnpg-checkbox-border: #52525b;
+        --cnpg-checkbox-checked: #a78bfa;
+      }
+      /* Light theme */
+      body.theme-light {
+        --cnpg-bg-page: #f4f4f5;
+        --cnpg-bg-nav: rgba(250,250,250,0.95);
+        --cnpg-bg-card: #ffffff;
+        --cnpg-bg-card-hover: rgba(0,0,0,0.06);
+        --cnpg-bg-input: #ffffff;
+        --cnpg-bg-tab: #e4e4e7;
+        --cnpg-border: #e4e4e7;
+        --cnpg-border-subtle: rgba(0,0,0,0.08);
+        --cnpg-text: #18181b;
+        --cnpg-text-secondary: #27272a;
+        --cnpg-text-muted: #52525b;
+        --cnpg-text-dim: #71717a;
+        --cnpg-accent: #7c3aed;
+        --cnpg-modal-overlay: rgba(0,0,0,0.4);
+        --cnpg-modal-bg: #ffffff;
+        --cnpg-checkbox-border: #a1a1aa;
+        --cnpg-checkbox-checked: #7c3aed;
+      }
       .font-mono, code, [style*="monospace"] { font-family: var(--font-mono); }
     </style>
   </head>

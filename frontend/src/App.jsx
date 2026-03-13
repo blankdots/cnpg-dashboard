@@ -27,6 +27,8 @@ const P = {
   clock: "M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2",
   x: "M18 6L6 18M6 6l12 12",
   err: "M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM15 9l-6 6M9 9l6 6",
+  sun: "M12 4V2m0 20v-2m8-8h2M2 12h2m13.66-5.66L19.78 4.22M4.22 19.78 7.34 16.66m10.32 0 3.12 3.12M4.22 4.22 7.34 7.34M12 8a4 4 0 100 8 4 4 0 000-8z",
+  moon: "M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z",
 };
 
 // Mock data kept as fallback for when the backend is unreachable (demo / dev)
@@ -148,6 +150,8 @@ function applyEvent(list, type, key, resource) {
   }
 }
 
+const STATUS_MAX_LENGTH = 24;
+
 const statusStyles = {
   Healthy:   { dot: "#34d399", text: "#6ee7b7", bg: "rgba(52,211,153,0.1)",  border: "rgba(52,211,153,0.2)" },
   Ready:     { dot: "#34d399", text: "#6ee7b7", bg: "rgba(52,211,153,0.1)",  border: "rgba(52,211,153,0.2)" },
@@ -160,10 +164,12 @@ const statusStyles = {
 
 const StatusBadge = ({ status }) => {
   const s = statusStyles[status] || { dot: "#71717a", text: "#a1a1aa", bg: "rgba(39,39,42,0.8)", border: "#3f3f46" };
+  const display = typeof status === "string" && status.length > STATUS_MAX_LENGTH ? status.slice(0, STATUS_MAX_LENGTH) + "…" : status;
+  const title = typeof status === "string" && status.length > STATUS_MAX_LENGTH ? status : undefined;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 8px", borderRadius: 999, fontSize: 12, fontWeight: 500, background: s.bg, border: `1px solid ${s.border}`, color: s.text }}>
+    <span title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 8px", borderRadius: 999, fontSize: 12, fontWeight: 500, background: s.bg, border: `1px solid ${s.border}`, color: s.text, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
-      {status}
+      {display}
     </span>
   );
 };
@@ -190,28 +196,28 @@ const ClusterModal = ({ cluster, barmans, onClose, send, connStatus }) => {
 
   const barman = barmans.find(b => b.clusterRef === cluster.name);
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 672, borderRadius: 16, overflow: "hidden", background: "#18181b", border: "1px solid #3f3f46", boxShadow: "0 25px 60px rgba(0,0,0,0.6)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "24px 24px 20px", borderBottom: "1px solid #27272a" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "var(--cnpg-modal-overlay)", backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 672, borderRadius: 16, overflow: "hidden", background: "var(--cnpg-modal-bg)", border: "1px solid var(--cnpg-border)", boxShadow: "0 25px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "24px 24px 20px", borderBottom: "1px solid var(--cnpg-border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Icon d={P.db} size={15} className="text-violet-400" />
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#f4f4f5", fontFamily: "monospace" }}>{cluster.name}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--cnpg-text)", fontFamily: "monospace" }}>{cluster.name}</span>
                 <StatusBadge status={cluster.status} />
               </div>
-              <p style={{ fontSize: 11, color: "#71717a", marginTop: 2 }}>
-                ns: <span style={{ color: "#a1a1aa" }}>{cluster.namespace}</span>
+              <p style={{ fontSize: 11, color: "var(--cnpg-text-muted)", marginTop: 2 }}>
+                ns: <span style={{ color: "var(--cnpg-text-dim)" }}>{cluster.namespace}</span>
                 {" · "}pg <span style={{ color: "#a1a1aa" }}>{cluster.postgresVersion}</span>
                 {" · "}age <span style={{ color: "#a1a1aa" }}>{cluster.age}</span>
               </p>
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: 6, borderRadius: 8, background: "transparent", border: "none", cursor: "pointer", color: "#71717a" }}
-            onMouseEnter={e => { e.target.style.background = "#27272a"; e.target.style.color = "#e4e4e7"; }}
-            onMouseLeave={e => { e.target.style.background = "transparent"; e.target.style.color = "#71717a"; }}>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 8, background: "transparent", border: "none", cursor: "pointer", color: "var(--cnpg-text-muted)" }}
+            onMouseEnter={e => { e.target.style.background = "var(--cnpg-bg-tab)"; e.target.style.color = "var(--cnpg-text-secondary)"; }}
+            onMouseLeave={e => { e.target.style.background = "transparent"; e.target.style.color = "var(--cnpg-text-muted)"; }}>
             <Icon d={P.x} size={14} />
           </button>
         </div>
@@ -224,39 +230,39 @@ const ClusterModal = ({ cluster, barmans, onClose, send, connStatus }) => {
               { label: "Primary", value: "#" + cluster.primaryNode.split("-").pop() },
               { label: "Backups", value: cluster.backupEnabled ? "Active" : "None" },
             ].map(s => (
-              <div key={s.label} style={{ borderRadius: 12, background: "rgba(39,39,42,0.6)", border: "1px solid rgba(63,63,70,0.5)", padding: 12, textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#f4f4f5", fontFamily: "monospace" }}>{s.value}</div>
-                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#71717a", marginTop: 2 }}>{s.label}</div>
+              <div key={s.label} style={{ borderRadius: 12, background: "var(--cnpg-bg-card-hover)", border: "1px solid var(--cnpg-border-subtle)", padding: 12, textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--cnpg-text)", fontFamily: "monospace" }}>{s.value}</div>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--cnpg-text-muted)", marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
           </div>
 
           {cluster.pgDataImage && (
-            <div style={{ borderRadius: 12, background: "rgba(39,39,42,0.6)", border: "1px solid rgba(63,63,70,0.5)", padding: 12 }}>
-              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#71717a", marginBottom: 4 }}>Pg Data Image</div>
-              <div style={{ fontSize: 12, fontFamily: "monospace", color: "#a1a1aa", wordBreak: "break-all" }}>{cluster.pgDataImage}</div>
+            <div style={{ borderRadius: 12, background: "var(--cnpg-bg-card-hover)", border: "1px solid var(--cnpg-border-subtle)", padding: 12 }}>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--cnpg-text-muted)", marginBottom: 4 }}>Pg Data Image</div>
+              <div style={{ fontSize: 12, fontFamily: "monospace", color: "var(--cnpg-text-dim)", wordBreak: "break-all" }}>{cluster.pgDataImage}</div>
             </div>
           )}
 
           <div>
-            <h3 style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, color: "#71717a", marginBottom: 12 }}>Instances</h3>
-            <div style={{ borderRadius: 12, border: "1px solid #27272a", overflow: "hidden" }}>
+            <h3 style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, color: "var(--cnpg-text-muted)", marginBottom: 12 }}>Instances</h3>
+            <div style={{ borderRadius: 12, border: "1px solid var(--cnpg-border)", overflow: "hidden" }}>
               <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #27272a" }}>
+                  <tr style={{ borderBottom: "1px solid var(--cnpg-border)" }}>
                     {["Name", "Role", "Status", "CPU", "Memory"].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "8px 16px", color: "#71717a", fontWeight: 500 }}>{h}</th>
+                      <th key={h} style={{ textAlign: "left", padding: "8px 16px", color: "var(--cnpg-text-muted)", fontWeight: 500 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {cluster.nodes.map((n, i) => (
-                    <tr key={n.name} style={{ borderBottom: i < cluster.nodes.length - 1 ? "1px solid rgba(39,39,42,0.5)" : "none" }}>
-                      <td style={{ padding: "10px 16px", fontFamily: "monospace", color: "#d4d4d8" }}>{n.name}</td>
-                      <td style={{ padding: "10px 16px", color: n.role === "Primary" ? "#a78bfa" : "#71717a", fontWeight: n.role === "Primary" ? 600 : 400 }}>{n.role}</td>
+                    <tr key={n.name} style={{ borderBottom: i < cluster.nodes.length - 1 ? "1px solid var(--cnpg-border-subtle)" : "none" }}>
+                      <td style={{ padding: "10px 16px", fontFamily: "monospace", color: "var(--cnpg-text-secondary)" }}>{n.name}</td>
+                      <td style={{ padding: "10px 16px", color: n.role === "Primary" ? "var(--cnpg-accent)" : "var(--cnpg-text-muted)", fontWeight: n.role === "Primary" ? 600 : 400 }}>{n.role}</td>
                       <td style={{ padding: "10px 16px" }}><StatusBadge status={n.status} /></td>
-                      <td style={{ padding: "10px 16px", fontFamily: "monospace", color: "#a1a1aa" }}>{n.cpuUsage ? formatCpuQuantity(n.cpuUsage) : "n/a"}</td>
-                      <td style={{ padding: "10px 16px", fontFamily: "monospace", color: "#a1a1aa" }}>{n.memUsage ? formatMemQuantity(n.memUsage) : "n/a"}</td>
+                      <td style={{ padding: "10px 16px", fontFamily: "monospace", color: "var(--cnpg-text-dim)" }}>{n.cpuUsage ? formatCpuQuantity(n.cpuUsage) : "n/a"}</td>
+                      <td style={{ padding: "10px 16px", fontFamily: "monospace", color: "var(--cnpg-text-dim)" }}>{n.memUsage ? formatMemQuantity(n.memUsage) : "n/a"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -266,8 +272,8 @@ const ClusterModal = ({ cluster, barmans, onClose, send, connStatus }) => {
 
           {barman && (
             <div>
-              <h3 style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, color: "#71717a", marginBottom: 12 }}>Backup Configuration</h3>
-              <div style={{ borderRadius: 12, border: "1px solid #27272a", background: "rgba(39,39,42,0.2)", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+              <h3 style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, color: "var(--cnpg-text-muted)", marginBottom: 12 }}>Backup Configuration</h3>
+              <div style={{ borderRadius: 12, border: "1px solid var(--cnpg-border)", background: "var(--cnpg-bg-card-hover)", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
                   ["Barman Store", barman.name],
                   ["Endpoint", barman.endpoint],
@@ -280,8 +286,8 @@ const ClusterModal = ({ cluster, barmans, onClose, send, connStatus }) => {
                   ["Encryption", barman.encryption],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 12, color: "#71717a" }}>{k}</span>
-                    <span style={{ fontSize: 12, fontFamily: "monospace", color: "#d4d4d8" }}>{v}</span>
+                    <span style={{ fontSize: 12, color: "var(--cnpg-text-muted)" }}>{k}</span>
+                    <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--cnpg-text-secondary)" }}>{v}</span>
                   </div>
                 ))}
               </div>
@@ -289,7 +295,7 @@ const ClusterModal = ({ cluster, barmans, onClose, send, connStatus }) => {
           )}
 
           {!cluster.backupEnabled && (
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, borderRadius: 12, border: "1px solid rgba(245,158,11,0.2)", background: "rgba(245,158,11,0.05)", padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, borderRadius: 12, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)", padding: 16 }}>
               <Icon d={P.warn} size={14} className="text-amber-400" style={{ flexShrink: 0, marginTop: 1 }} />
               <p style={{ fontSize: 12, color: "#fcd34d", margin: 0 }}>No Barman object store associated. Point-in-time recovery is unavailable.</p>
             </div>
@@ -305,6 +311,35 @@ export default function CNPGDashboard() {
   const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState("clusters");
   const [ns, setNs] = useState("");
+  const [theme, setTheme] = useState("dark");
+
+  // Initialise theme from localStorage or prefers-color-scheme
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("cnpg-theme");
+      if (stored === "light" || stored === "dark") {
+        setTheme(stored);
+        return;
+      }
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+        setTheme("light");
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Apply theme class on body (drives CSS variables for all elements)
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.classList.remove("theme-light", "theme-dark");
+    document.body.classList.add(theme === "light" ? "theme-light" : "theme-dark");
+    try {
+      window.localStorage.setItem("cnpg-theme", theme);
+    } catch {
+      // ignore
+    }
+  }, [theme]);
 
   // Keep selected cluster in sync with list (so modal shows live metrics when backend pushes updates)
   useEffect(() => {
@@ -327,24 +362,31 @@ export default function CNPGDashboard() {
   const mono = { fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Mono', monospace" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#09090b", color: "#f4f4f5", ...mono }}>
+    <div style={{ minHeight: "100vh", background: "var(--cnpg-bg-page)", color: "var(--cnpg-text)", ...mono }}>
       {/* Nav */}
-      <div style={{ position: "sticky", top: 0, zIndex: 40, borderBottom: "1px solid #27272a", background: "rgba(9,9,11,0.9)", backdropFilter: "blur(8px)" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 40, borderBottom: "1px solid var(--cnpg-border)", background: "var(--cnpg-bg-nav)", backdropFilter: "blur(8px)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--cnpg-accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Icon d={P.cluster} size={13} className="text-white" />
             </div>
             <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.02em" }}>CNPG Console</span>
-            <span style={{ color: "#3f3f46", fontSize: 18 }}>·</span>
-            <span style={{ fontSize: 12, color: "#71717a" }}>CloudNativePG + Barman</span>
+            <span style={{ color: "var(--cnpg-text-muted)", fontSize: 18 }}>·</span>
+            <span style={{ fontSize: 12, color: "var(--cnpg-text-muted)" }}>CloudNativePG + Barman</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#a1a1aa", background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
+            <button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--cnpg-text-dim)", background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
               <Icon d={P.refresh} size={12} />
               Sync
             </button>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#71717a" }}>
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--cnpg-text-dim)", background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}
+            >
+              <Icon d={theme === "dark" ? P.sun : P.moon} size={12} />
+              {theme === "dark" ? "Light" : "Dark"}
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--cnpg-text-muted)" }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", display: "inline-block",
                 background: connStatus === "connected" ? "#34d399" : connStatus === "error" ? "#f87171" : "#fbbf24",
                 boxShadow: connStatus === "connected" ? "0 0 0 3px rgba(52,211,153,0.2)" : connStatus === "error" ? "0 0 0 3px rgba(248,113,113,0.2)" : "0 0 0 3px rgba(251,191,36,0.2)"
@@ -365,15 +407,15 @@ export default function CNPGDashboard() {
             { label: "Degraded",       value: degraded,         icon: P.warn,    iconColor: "#fbbf24", boxBg: "rgba(251,191,36,0.1)",  boxBorder: "rgba(251,191,36,0.2)" },
             { label: "Instances",      value: `${readyInst}/${totalInst}`, icon: P.node, iconColor: "#38bdf8", boxBg: "rgba(56,189,248,0.1)", boxBorder: "rgba(56,189,248,0.2)" },
           ].map(card => (
-            <div key={card.label} style={{ borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 16, background: "#18181b", border: "1px solid #27272a" }}>
+            <div key={card.label} style={{ borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 16, background: "var(--cnpg-bg-card)", border: "1px solid var(--cnpg-border)" }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: card.boxBg, border: `1px solid ${card.boxBorder}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={card.iconColor} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <path d={card.icon} />
                 </svg>
               </div>
               <div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: "#f4f4f5" }}>{card.value}</div>
-                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "#71717a" }}>{card.label}</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: "var(--cnpg-text)" }}>{card.value}</div>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--cnpg-text-muted)" }}>{card.label}</div>
               </div>
             </div>
           ))}
@@ -381,13 +423,13 @@ export default function CNPGDashboard() {
 
         {/* Tabs + NS Filter */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, padding: 4, borderRadius: 12, background: "#18181b", border: "1px solid #27272a" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, padding: 4, borderRadius: 12, background: "var(--cnpg-bg-card)", border: "1px solid var(--cnpg-border)" }}>
             {[
               { id: "clusters", icon: P.db,    label: "Clusters" },
               { id: "barman",   icon: P.backup, label: "Barman Stores" },
             ].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 16px", borderRadius: 8, fontSize: 12, border: "none", cursor: "pointer", transition: "all 0.15s", background: tab === t.id ? "#3f3f46" : "transparent", color: tab === t.id ? "#f4f4f5" : "#71717a" }}>
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 16px", borderRadius: 8, fontSize: 12, border: "none", cursor: "pointer", transition: "all 0.15s", background: tab === t.id ? "var(--cnpg-bg-tab)" : "transparent", color: tab === t.id ? "var(--cnpg-text)" : "var(--cnpg-text-muted)" }}>
                 <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <path d={t.icon} />
                 </svg>
@@ -396,7 +438,7 @@ export default function CNPGDashboard() {
             ))}
           </div>
           <div style={{ position: "relative" }}>
-            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#52525b" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="var(--cnpg-text-muted)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
               style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
               <circle cx={11} cy={11} r={8} /><path d="M21 21l-4.35-4.35" />
             </svg>
@@ -405,13 +447,13 @@ export default function CNPGDashboard() {
               placeholder="Filter namespace..."
               value={ns}
               onChange={e => setNs(e.target.value)}
-              style={{ background: "#18181b", border: "1px solid #3f3f46", color: "#e4e4e7", fontSize: 12, padding: "6px 32px 6px 30px", borderRadius: 8, outline: "none", fontFamily: "inherit", width: 180, caretColor: "#a78bfa" }}
-              onFocus={e => e.target.style.borderColor = "rgba(139,92,246,0.5)"}
-              onBlur={e => e.target.style.borderColor = "#3f3f46"}
+              style={{ background: "var(--cnpg-bg-input)", border: "1px solid var(--cnpg-border)", color: "var(--cnpg-text-secondary)", fontSize: 12, padding: "6px 32px 6px 30px", borderRadius: 8, outline: "none", fontFamily: "inherit", width: 180, caretColor: "var(--cnpg-accent)" }}
+              onFocus={e => e.target.style.borderColor = "var(--cnpg-accent)"}
+              onBlur={e => e.target.style.borderColor = ""}
             />
             {ns !== "" && (
               <button onClick={() => setNs("")}
-                style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#71717a", padding: 2, display: "flex", alignItems: "center" }}>
+                style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "var(--cnpg-text-muted)", padding: 2, display: "flex", alignItems: "center" }}>
                 <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
@@ -433,51 +475,51 @@ export default function CNPGDashboard() {
         {tab === "barman" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {filteredBarman.map(b => (
-              <div key={b.name} style={{ borderRadius: 12, overflow: "hidden", background: "#18181b", border: "1px solid #27272a" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: "1px solid #27272a", flexWrap: "wrap", gap: 12 }}>
+              <div key={b.name} style={{ borderRadius: 12, overflow: "hidden", background: "var(--cnpg-bg-card)", border: "1px solid var(--cnpg-border)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: "1px solid var(--cnpg-border)", flexWrap: "wrap", gap: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Icon d={P.backup} size={16} className="text-violet-400" />
                     </div>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: "#f4f4f5" }}>{b.name}</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--cnpg-text)" }}>{b.name}</span>
                         <StatusBadge status={b.lastBackupStatus} />
                       </div>
-                      <div style={{ fontSize: 11, color: "#71717a", fontFamily: "monospace", marginTop: 2 }}>{b.endpoint}</div>
+                      <div style={{ fontSize: 11, color: "var(--cnpg-text-muted)", fontFamily: "monospace", marginTop: 2 }}>{b.endpoint}</div>
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 12, color: "#a1a1aa", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 12, color: "var(--cnpg-text-dim)", display: "flex", alignItems: "center", gap: 6 }}>
                       <Icon d={P.db} size={12} className="text-zinc-600" />
                       {b.cluster}
                     </span>
-                    <button style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, border: "1px solid #3f3f46", background: "#27272a", color: "#d4d4d8", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                    <button style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--cnpg-border)", background: "var(--cnpg-bg-tab)", color: "var(--cnpg-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                       <Icon d={P.backup} size={11} />
                       Backup Now
                     </button>
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderBottom: "1px solid #27272a" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderBottom: "1px solid var(--cnpg-border)" }}>
                   {[
                     { label: "Destination", value: b.destinationType, sub: `ns: ${b.namespace}` },
                     { label: "Last Backup",  value: b.lastBackup,      sub: b.lastBackupStatus },
                     { label: "Retention",    value: b.retentionPolicy,  sub: `${b.totalBackups} backups stored` },
                     { label: "Total Size",   value: b.size,             sub: `WAL: ${b.walEnabled ? "On" : "Off"} · Enc: ${b.encryption}` },
                   ].map((item, idx) => (
-                    <div key={item.label} style={{ padding: "16px 24px", borderRight: idx < 3 ? "1px solid #27272a" : "none" }}>
-                      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#71717a", marginBottom: 4 }}>{item.label}</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#e4e4e7" }}>{item.value}</div>
-                      <div style={{ fontSize: 11, color: "#71717a", marginTop: 2 }}>{item.sub}</div>
+                    <div key={item.label} style={{ padding: "16px 24px", borderRight: idx < 3 ? "1px solid var(--cnpg-border)" : "none" }}>
+                      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--cnpg-text-muted)", marginBottom: 4 }}>{item.label}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--cnpg-text-secondary)" }}>{item.value}</div>
+                      <div style={{ fontSize: 11, color: "var(--cnpg-text-muted)", marginTop: 2 }}>{item.sub}</div>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ padding: "12px 24px", background: "rgba(39,39,42,0.3)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ padding: "12px 24px", background: "var(--cnpg-bg-card-hover)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <Icon d={P.clock} size={12} className="text-zinc-600" />
-                  <span style={{ fontSize: 11, color: "#71717a" }}>Schedule:</span>
-                  <code style={{ fontSize: 11, color: "#a78bfa", background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.1)", padding: "2px 8px", borderRadius: 6 }}>
+                  <span style={{ fontSize: 11, color: "var(--cnpg-text-muted)" }}>Schedule:</span>
+                  <code style={{ fontSize: 11, color: "var(--cnpg-accent)", background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.1)", padding: "2px 8px", borderRadius: 6 }}>
                     {b.scheduledBackup}
                   </code>
                   {b.lastBackupStatus === "Failed" && (
@@ -492,9 +534,9 @@ export default function CNPGDashboard() {
           </div>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: "1px solid rgba(39,39,42,0.5)" }}>
-          <span style={{ fontSize: 11, color: "#52525b" }}>CloudNativePG operator · Barman Cloud</span>
-          <span style={{ fontSize: 11, color: "#52525b" }}>Last synced: just now</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: "1px solid var(--cnpg-border-subtle)" }}>
+          <span style={{ fontSize: 11, color: "var(--cnpg-text-muted)" }}>CloudNativePG operator · Barman Cloud</span>
+          <span style={{ fontSize: 11, color: "var(--cnpg-text-muted)" }}>Last synced: just now</span>
         </div>
       </div>
 
