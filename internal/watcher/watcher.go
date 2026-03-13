@@ -12,7 +12,7 @@ import (
 )
 
 // ClusterFuncMap returns the add/update/delete handlers for Cluster informer.
-func ClusterFuncMap(s *store.Store) map[string]interface{} {
+func ClusterFuncMap(s store.StoreInterface) map[string]interface{} {
 	return map[string]interface{}{
 		"add": func(_ context.Context, _ dynamic.Interface, _ string, metaObj metav1.Object) {
 			if u, ok := metaObj.(*unstructured.Unstructured); ok {
@@ -31,7 +31,7 @@ func ClusterFuncMap(s *store.Store) map[string]interface{} {
 }
 
 // BarmanFuncMap returns the add/update/delete handlers for BarmanObjectStore informer.
-func BarmanFuncMap(s *store.Store) map[string]interface{} {
+func BarmanFuncMap(s store.StoreInterface) map[string]interface{} {
 	return map[string]interface{}{
 		"add": func(_ context.Context, _ dynamic.Interface, _ string, metaObj metav1.Object) {
 			if u, ok := metaObj.(*unstructured.Unstructured); ok {
@@ -50,7 +50,7 @@ func BarmanFuncMap(s *store.Store) map[string]interface{} {
 }
 
 // ObjectStoreFuncMap returns the add/update/delete handlers for the Barman Cloud plugin's ObjectStore informer.
-func ObjectStoreFuncMap(s *store.Store) map[string]interface{} {
+func ObjectStoreFuncMap(s store.StoreInterface) map[string]interface{} {
 	return map[string]interface{}{
 		"add": func(_ context.Context, _ dynamic.Interface, _ string, metaObj metav1.Object) {
 			if u, ok := metaObj.(*unstructured.Unstructured); ok {
@@ -71,7 +71,7 @@ func ObjectStoreFuncMap(s *store.Store) map[string]interface{} {
 // ScheduledBackupFuncMap returns the add/update/delete handlers for the
 // CloudNativePG ScheduledBackup informer. Propagates schedule and lastScheduleTime
 // onto the related BarmanItem (via the target Cluster).
-func ScheduledBackupFuncMap(s *store.Store) map[string]interface{} {
+func ScheduledBackupFuncMap(s store.StoreInterface) map[string]interface{} {
 	parse := func(metaObj metav1.Object) (ns, clusterName, schedule, lastScheduleTime string, ok bool) {
 		u, ok := metaObj.(*unstructured.Unstructured)
 		if !ok {
@@ -118,7 +118,7 @@ func ScheduledBackupFuncMap(s *store.Store) map[string]interface{} {
 
 // BackupFuncMap returns the add/update/delete handlers for the CloudNativePG Backup informer.
 // Aggregates backup sizes per cluster and sets BarmanItem.Size (total) when the store does not provide backupsSize.
-func BackupFuncMap(s *store.Store) map[string]interface{} {
+func BackupFuncMap(s store.StoreInterface) map[string]interface{} {
 	parse := func(metaObj metav1.Object) (ns, clusterName, backupName string, sizeBytes int64, ok bool) {
 		u, ok := metaObj.(*unstructured.Unstructured)
 		if !ok {

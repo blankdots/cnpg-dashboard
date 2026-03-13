@@ -113,6 +113,10 @@ local_resource(
   labels=['dashboard'],
 )
 
+# ── Redis (in-cluster store for Tilt dev; optional for production) ─────────────
+k8s_yaml('dev/redis.yaml')
+k8s_resource('redis', labels=['redis', 'dashboard'])
+
 # ── Dashboard (app + Helm deploy; waits for cert-manager CRDs and CNPG) ──────
 k8s_yaml(
   helm(
@@ -130,7 +134,7 @@ k8s_yaml(
 
 k8s_resource(
   'cnpg-dashboard',
-  resource_deps=['apply-cert-resources', 'cnpg-operator'],
+  resource_deps=['apply-cert-resources', 'cnpg-operator', 'redis'],
   port_forwards=['8443:8443'],
   labels=['dashboard'],
 )

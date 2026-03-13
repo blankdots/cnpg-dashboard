@@ -29,6 +29,62 @@ type Event struct {
 	Resource     interface{} `json:"resource"`
 }
 
+// broadcaster is an in-process pub/sub for store events. Store and RedisStore use it so subscribers (e.g. WebSocket hub) receive updates.
+type broadcaster struct {
+	mu   sync.RWMutex
+	subs []chan Event
+}
+
+func (b *broadcaster) publish(ev Event) {
+	b.mu.RLock()
+	subs := make([]chan Event, len(b.subs))
+	copy(subs, b.subs)
+	b.mu.RUnlock()
+	for _, ch := range subs {
+		select {
+		case ch <- ev:
+		default:
+			// subscriber too slow; drop to avoid blocking informers
+		}
+	}
+}
+
+func (b *broadcaster) subscribe() <-chan Event {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	ch := make(chan Event, 64)
+	b.subs = append(b.subs, ch)
+	return ch
+}
+
+func (b *broadcaster) unsubscribe(ch <-chan Event) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for i, sub := range b.subs {
+		if sub == ch {
+			b.subs = append(b.subs[:i], b.subs[i+1:]...)
+			close(sub)
+			break
+		}
+	}
+}
+
+// StoreInterface is the contract for the dashboard store (in-memory or Redis-backed).
+// Implementations persist state and publish events so the UI updates as informers receive data.
+type StoreInterface interface {
+	Clusters() []ClusterItem
+	Barmans() []BarmanItem
+	Subscribe() <-chan Event
+	Unsubscribe(ch <-chan Event)
+	AddCluster(c *ClusterItem)
+	DeleteCluster(ns, name string)
+	UpdateClusterNodeMetrics(ns, clusterName string, metrics map[string]NodeMetrics) bool
+	UpdateBarmanSchedule(ns, clusterName, schedule, lastScheduleTime string, set bool)
+	UpdateBackupSize(ns, clusterName, backupName string, sizeBytes int64, isDelete bool)
+	AddBarman(b *BarmanItem)
+	DeleteBarman(ns, name string)
+}
+
 // ClusterItem is the frontend-facing representation of a CNPG Cluster.
 type ClusterItem struct {
 	Name             string     `json:"name"`
@@ -80,24 +136,24 @@ type schedEntry struct {
 	LastScheduleTime string
 }
 
-// Store holds clusters and barmans in memory and broadcasts events.
+// Store holds clusters and barmans in memory (source of truth). When it changes, it publishes to the broadcaster so subscribers (e.g. WebSocket hub) can push updates to the UI.
 type Store struct {
-	mu               sync.RWMutex
-	clusters         map[string]*ClusterItem
-	barmans          map[string]*BarmanItem
-	schedCache       map[string]map[string]*schedEntry   // ns -> clusterName -> entry (so we can apply when a store or cluster is added after ScheduledBackup)
-	backupSizes      map[string]map[string]int64         // clusterKey -> backupName -> sizeBytes (from Backup CR status, for total size when store has no backupsSize)
-	subs             []chan Event
+	mu          sync.RWMutex
+	clusters    map[string]*ClusterItem
+	barmans     map[string]*BarmanItem
+	schedCache  map[string]map[string]*schedEntry   // ns -> clusterName -> entry (so we can apply when a store or cluster is added after ScheduledBackup)
+	backupSizes map[string]map[string]int64         // clusterKey -> backupName -> sizeBytes (from Backup CR status, for total size when store has no backupsSize)
+	broad       *broadcaster
 }
 
-// New creates an empty store.
+// New creates an empty store. Informers update the store; the store publishes to subscribers; the hub subscribes and forwards to WebSocket clients.
 func New() *Store {
 	return &Store{
 		clusters:    make(map[string]*ClusterItem),
 		barmans:     make(map[string]*BarmanItem),
 		schedCache:  make(map[string]map[string]*schedEntry),
 		backupSizes: make(map[string]map[string]int64),
-		subs:        nil,
+		broad:       &broadcaster{},
 	}
 }
 
@@ -138,38 +194,17 @@ func (s *Store) Barmans() []BarmanItem {
 
 // Subscribe returns a channel that receives store events. Call Unsubscribe when done.
 func (s *Store) Subscribe() <-chan Event {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	ch := make(chan Event, 64)
-	s.subs = append(s.subs, ch)
-	return ch
+	return s.broad.subscribe()
 }
 
-// Unsubscribe removes the channel from the subscriber list.
+// Unsubscribe removes the channel from the broadcaster.
 func (s *Store) Unsubscribe(ch <-chan Event) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i, sub := range s.subs {
-		if sub == ch {
-			s.subs = append(s.subs[:i], s.subs[i+1:]...)
-			close(sub)
-			break
-		}
-	}
+	s.broad.unsubscribe(ch)
 }
 
+// broadcast publishes the event so UI subscribers get updates as informers mutate the store.
 func (s *Store) broadcast(ev Event) {
-	s.mu.RLock()
-	subs := make([]chan Event, len(s.subs))
-	copy(subs, s.subs)
-	s.mu.RUnlock()
-	for _, ch := range subs {
-		select {
-		case ch <- ev:
-		default:
-			// drop if full
-		}
-	}
+	s.broad.publish(ev)
 }
 
 // AddCluster adds or updates a cluster and broadcasts the event.

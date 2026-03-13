@@ -36,7 +36,7 @@ type CommandHandler func(ctx context.Context, payload json.RawMessage) (interfac
 
 // Hub manages all active WebSocket connections and broadcasts store events.
 type Hub struct {
-	store    *store.Store
+	store    store.StoreInterface
 	handlers map[string]CommandHandler
 
 	mu      sync.RWMutex
@@ -44,7 +44,7 @@ type Hub struct {
 }
 
 // New creates a Hub. Call Serve() to handle upgrade requests.
-func New(s *store.Store) *Hub {
+func New(s store.StoreInterface) *Hub {
 	return &Hub{
 		store:    s,
 		handlers: make(map[string]CommandHandler),
@@ -53,7 +53,7 @@ func New(s *store.Store) *Hub {
 }
 
 // Store returns the hub's store (for command handlers that need to trigger store updates).
-func (h *Hub) Store() *store.Store {
+func (h *Hub) Store() store.StoreInterface {
 	return h.store
 }
 

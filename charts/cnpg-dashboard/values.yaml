@@ -73,6 +73,11 @@ readinessProbe:
     path: /health
     port: http
 
+# Optional: Redis URL for persistent store and pub/sub. When set, clusters/barmans are stored in Redis and events are published so the UI stays in sync across restarts and multiple replicas.
+# Example: "redis://redis.default.svc.cluster.local:6379" or "redis://redis:6379" (in-cluster).
+redis:
+  url: ""
+
 log:
   level: "info"
   format: "json"  # "json" or "text" (text for local dev)

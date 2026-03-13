@@ -34,7 +34,18 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	s := store.New()
+	var s store.StoreInterface
+	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
+		var err error
+		s, err = store.NewRedis(redisURL)
+		if err != nil {
+			slog.Error("redis store", slog.Any("err", err))
+			os.Exit(1)
+		}
+		slog.Info("using Redis store", slog.String("redis", redisURL))
+	} else {
+		s = store.New()
+	}
 	client, err := clients.K8sClient(kubeconfig)
 	if err != nil {
 		slog.Error("k8s client", slog.Any("err", err))

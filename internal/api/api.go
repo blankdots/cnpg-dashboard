@@ -12,13 +12,13 @@ import (
 
 // Handler holds dependencies for HTTP handlers
 type Handler struct {
-	store *store.Store
+	store store.StoreInterface
 	hub   *ws.Hub
 }
 
 // New creates an API handler, registers all routes on mux, and returns
 // the WebSocket hub so the caller can register command handlers on it.
-func New(s *store.Store, mux *http.ServeMux) (*Handler, *ws.Hub) {
+func New(s store.StoreInterface, mux *http.ServeMux) (*Handler, *ws.Hub) {
 	hub := ws.New(s)
 
 	h := &Handler{store: s, hub: hub}

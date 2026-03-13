@@ -12,6 +12,10 @@ tls:
   secretName: cnpg-dashboard-tls
   skipCertResources: true  # Apply via local_resource after CRDs exist
 
+# Use Redis (dev/redis.yaml in Tilt) for persistent store and pub/sub
+redis:
+  url: "redis://redis:6379"
+
 log:
   level: "debug"
   format: "json"  # JSON logs for Kubernetes

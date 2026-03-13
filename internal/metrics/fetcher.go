@@ -23,7 +23,7 @@ var metricsGVR = schema.GroupVersionResource{
 
 // Run fetches pod metrics periodically and updates the store.
 // It runs until ctx is cancelled. Requires metrics-server to be installed.
-func Run(ctx context.Context, client dynamic.Interface, s *store.Store, interval time.Duration) {
+func Run(ctx context.Context, client dynamic.Interface, s store.StoreInterface, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -47,7 +47,7 @@ func Run(ctx context.Context, client dynamic.Interface, s *store.Store, interval
 	}
 }
 
-func fetchAndUpdate(ctx context.Context, client dynamic.Interface, s *store.Store) {
+func fetchAndUpdate(ctx context.Context, client dynamic.Interface, s store.StoreInterface) {
 	clusters := s.Clusters()
 	for _, c := range clusters {
 		nodeNames := nodeNamesForCluster(c)
@@ -68,7 +68,7 @@ func fetchAndUpdate(ctx context.Context, client dynamic.Interface, s *store.Stor
 
 // RefreshClusterMetrics fetches metrics for a single cluster and updates the store; then the store broadcasts.
 // Call this when the user opens the cluster details modal so metrics are fresh.
-func RefreshClusterMetrics(ctx context.Context, client dynamic.Interface, s *store.Store, namespace, clusterName string) error {
+func RefreshClusterMetrics(ctx context.Context, client dynamic.Interface, s store.StoreInterface, namespace, clusterName string) error {
 	clusters := s.Clusters()
 	var c *store.ClusterItem
 	for i := range clusters {
