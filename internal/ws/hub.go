@@ -89,6 +89,23 @@ func (h *Hub) Serve(w http.ResponseWriter, r *http.Request) {
 
 	h.sendSnapshot(ctx, c)
 
+	// After a short delay, send full state again so clients get Backup-derived data (count/size) that may have arrived after initial snapshot
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(2 * time.Second):
+			payload := map[string]interface{}{
+				"clusters":    h.store.Clusters(),
+				"objectstores": h.store.Barmans(),
+			}
+			select {
+			case c.send <- OutboundMsg{Type: "full_state", Payload: payload}:
+			default:
+			}
+		}
+	}()
+
 	var wg sync.WaitGroup
 
 	wg.Add(1)

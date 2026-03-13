@@ -79,6 +79,20 @@ func main() {
 		_ = clients.DynamicInformer(ctx, client, "", objectStoreGVR, watcher.ObjectStoreFuncMap(s), errCh)
 	}()
 
+	// ScheduledBackup informer (optional; CRD is installed with CNPG operator)
+	schedGVR := schema.GroupVersionResource{Group: "postgresql.cnpg.io", Version: "v1", Resource: "scheduledbackups"}
+	go func() {
+		slog.Info("starting informer", slog.String("resource", "scheduledbackups"))
+		_ = clients.DynamicInformer(ctx, client, "", schedGVR, watcher.ScheduledBackupFuncMap(s), errCh)
+	}()
+
+	// Backup informer: aggregate backup sizes per cluster for BarmanItem.Size when store has no backupsSize
+	backupGVR := schema.GroupVersionResource{Group: "postgresql.cnpg.io", Version: "v1", Resource: "backups"}
+	go func() {
+		slog.Info("starting informer", slog.String("resource", "backups"))
+		_ = clients.DynamicInformer(ctx, client, "", backupGVR, watcher.BackupFuncMap(s), errCh)
+	}()
+
 	// Metrics fetcher (background)
 	go metrics.Run(ctx, client, s, metricsInterval)
 

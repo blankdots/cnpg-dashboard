@@ -2,9 +2,11 @@ package store
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -29,18 +31,19 @@ type Event struct {
 
 // ClusterItem is the frontend-facing representation of a CNPG Cluster.
 type ClusterItem struct {
-	Name            string     `json:"name"`
-	Namespace       string     `json:"namespace"`
-	Status          string     `json:"status"`
-	PostgresVersion string     `json:"postgresVersion"`
-	Age             string     `json:"age"`
-	Instances       int        `json:"instances"`
-	ReadyInstances  int        `json:"readyInstances"`
-	Storage         string     `json:"storage"`
-	PrimaryNode     string     `json:"primaryNode"`
-	BackupEnabled   bool       `json:"backupEnabled"`
-	PgDataImage     string     `json:"pgDataImage,omitempty"` // status.pgDataImageInfo.image
-	Nodes           []NodeInfo `json:"nodes"`
+	Name             string     `json:"name"`
+	Namespace        string     `json:"namespace"`
+	Status           string     `json:"status"`
+	PostgresVersion  string     `json:"postgresVersion"`
+	Age              string     `json:"age"`
+	Instances        int        `json:"instances"`
+	ReadyInstances   int        `json:"readyInstances"`
+	Storage          string     `json:"storage"`
+	PrimaryNode      string     `json:"primaryNode"`
+	BackupEnabled    bool       `json:"backupEnabled"`
+	BarmanObjectName string     `json:"barmanObjectName,omitempty"` // plugin mode: spec.plugins[].parameters.barmanObjectName
+	PgDataImage      string     `json:"pgDataImage,omitempty"`      // status.pgDataImageInfo.image
+	Nodes            []NodeInfo `json:"nodes"`
 }
 
 // NodeInfo represents a single instance in a cluster.
@@ -71,25 +74,44 @@ type BarmanItem struct {
 	Encryption       string `json:"encryption"`
 }
 
+// schedEntry caches schedule and last schedule time from a ScheduledBackup for applying to a BarmanItem later.
+type schedEntry struct {
+	Schedule         string
+	LastScheduleTime string
+}
+
 // Store holds clusters and barmans in memory and broadcasts events.
 type Store struct {
-	mu       sync.RWMutex
-	clusters map[string]*ClusterItem
-	barmans  map[string]*BarmanItem
-	subs     []chan Event
+	mu               sync.RWMutex
+	clusters         map[string]*ClusterItem
+	barmans          map[string]*BarmanItem
+	schedCache       map[string]map[string]*schedEntry   // ns -> clusterName -> entry (so we can apply when a store or cluster is added after ScheduledBackup)
+	backupSizes      map[string]map[string]int64         // clusterKey -> backupName -> sizeBytes (from Backup CR status, for total size when store has no backupsSize)
+	subs             []chan Event
 }
 
 // New creates an empty store.
 func New() *Store {
 	return &Store{
-		clusters: make(map[string]*ClusterItem),
-		barmans:  make(map[string]*BarmanItem),
-		subs:     nil,
+		clusters:    make(map[string]*ClusterItem),
+		barmans:     make(map[string]*BarmanItem),
+		schedCache:  make(map[string]map[string]*schedEntry),
+		backupSizes: make(map[string]map[string]int64),
+		subs:        nil,
 	}
 }
 
 func key(ns, name string) string {
 	return ns + "/" + name
+}
+
+// parseClusterKey splits "namespace/name" into (namespace, name, true). Returns ( "", "", false ) if invalid.
+func parseClusterKey(clusterKey string) (ns, name string, ok bool) {
+	i := strings.Index(clusterKey, "/")
+	if i <= 0 || i == len(clusterKey)-1 {
+		return "", "", false
+	}
+	return clusterKey[:i], clusterKey[i+1:], true
 }
 
 // Clusters returns a copy of all clusters.
@@ -171,6 +193,48 @@ func (s *Store) AddCluster(c *ClusterItem) {
 		}
 	}
 	s.clusters[k] = c
+	// Apply any cached ScheduledBackup entry for this cluster (in case ScheduledBackup was processed before this cluster existed)
+	for clusterName, entry := range s.schedCache[c.Namespace] {
+		if clusterName == c.Name && entry != nil {
+			if bKey := s.resolveBarmanKeyForCluster(c.Namespace, clusterName); bKey != "" {
+				if b, ok := s.barmans[bKey]; ok {
+					b.ScheduledBackup = entry.Schedule
+					if entry.LastScheduleTime != "" {
+						b.LastBackup = entry.LastScheduleTime
+						b.LastBackupStatus = "Completed"
+					}
+					copy := *b
+					go s.broadcast(Event{Type: EventUpdated, ResourceKind: ResourceBarman, Resource: &copy})
+				}
+			}
+			break
+		}
+	}
+	// Apply backup count/size from Backup CRs when this cluster's store was added before the cluster (so we now can resolve and push)
+	clusterKey := key(c.Namespace, c.Name)
+	if sizes, ok := s.backupSizes[clusterKey]; ok && len(sizes) > 0 {
+		if bKey := s.resolveBarmanKeyForCluster(c.Namespace, c.Name); bKey != "" {
+			if b, ok := s.barmans[bKey]; ok {
+				n := len(sizes)
+				if n > b.TotalBackups {
+					b.TotalBackups = n
+				}
+				if b.Size == "" || b.Size == "—" {
+					var total int64
+					for _, sz := range sizes {
+						total += sz
+					}
+					if total > 0 {
+						b.Size = formatBytes(total)
+					} else {
+						b.Size = fmt.Sprintf("%d backup(s)", b.TotalBackups)
+					}
+				}
+				copy := *b
+				go s.broadcast(Event{Type: EventUpdated, ResourceKind: ResourceBarman, Resource: &copy})
+			}
+		}
+	}
 	s.mu.Unlock()
 	evType := EventAdded
 	if existed {
@@ -223,18 +287,204 @@ func (s *Store) UpdateClusterNodeMetrics(ns, clusterName string, metrics map[str
 	return true
 }
 
+// resolveBarmanKeyForCluster returns the barmans map key for the store that backs the given cluster in ns.
+// Caller must hold s.mu. Returns "" if no store can be determined.
+func (s *Store) resolveBarmanKeyForCluster(ns, clusterName string) string {
+	clusterKey := key(ns, clusterName)
+	cluster, ok := s.clusters[clusterKey]
+	if !ok {
+		return ""
+	}
+	if cluster.BarmanObjectName != "" {
+		return key(ns, cluster.BarmanObjectName)
+	}
+	var single string
+	for k := range s.barmans {
+		if strings.HasPrefix(k, ns+"/") {
+			if single != "" {
+				return ""
+			}
+			single = k
+		}
+	}
+	return single
+}
+
+// UpdateBarmanSchedule updates the ScheduledBackup and optionally LastBackup on the BarmanItem
+// that corresponds to the given cluster. lastScheduleTime is from ScheduledBackup status (e.g. lastScheduleTime).
+// Cached so that when a store or cluster is added later we can still apply.
+func (s *Store) UpdateBarmanSchedule(ns, clusterName, schedule, lastScheduleTime string, set bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if set {
+		if s.schedCache[ns] == nil {
+			s.schedCache[ns] = make(map[string]*schedEntry)
+		}
+		s.schedCache[ns][clusterName] = &schedEntry{Schedule: schedule, LastScheduleTime: lastScheduleTime}
+	} else {
+		if m := s.schedCache[ns]; m != nil {
+			delete(m, clusterName)
+			if len(m) == 0 {
+				delete(s.schedCache, ns)
+			}
+		}
+	}
+
+	bKey := s.resolveBarmanKeyForCluster(ns, clusterName)
+	if bKey == "" {
+		return
+	}
+
+	b, ok := s.barmans[bKey]
+	if !ok {
+		return
+	}
+
+	if set {
+		b.ScheduledBackup = schedule
+		if lastScheduleTime != "" {
+			b.LastBackup = lastScheduleTime
+			b.LastBackupStatus = "Completed"
+		}
+	} else {
+		b.ScheduledBackup = "—"
+		b.LastBackup = "—"
+		b.LastBackupStatus = "—"
+	}
+
+	copy := *b
+	go s.broadcast(Event{Type: EventUpdated, ResourceKind: ResourceBarman, Resource: &copy})
+}
+
+// UpdateBackupSize records a Backup's size for a cluster and updates the corresponding BarmanItem's Size (total)
+// when the store does not provide backupsSize. sizeBytes is the backup size in bytes; pass 0 for isDelete to remove a backup.
+func (s *Store) UpdateBackupSize(ns, clusterName, backupName string, sizeBytes int64, isDelete bool) {
+	clusterKey := key(ns, clusterName)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.backupSizes[clusterKey] == nil {
+		s.backupSizes[clusterKey] = make(map[string]int64)
+	}
+	if isDelete {
+		delete(s.backupSizes[clusterKey], backupName)
+		if len(s.backupSizes[clusterKey]) == 0 {
+			delete(s.backupSizes, clusterKey)
+		}
+	} else {
+		// Record every Backup (even with 0 size) so count is correct
+		s.backupSizes[clusterKey][backupName] = sizeBytes
+	}
+
+	var total int64
+	for _, n := range s.backupSizes[clusterKey] {
+		total += n
+	}
+	backupCount := len(s.backupSizes[clusterKey])
+
+	bKey := s.resolveBarmanKeyForCluster(ns, clusterName)
+	if bKey == "" {
+		return
+	}
+	b, ok := s.barmans[bKey]
+	if !ok {
+		return
+	}
+	// Backup count from Backup CRs when we have any (overrides store's 0 when plugin doesn't set backupsCount)
+	if backupCount > 0 {
+		b.TotalBackups = backupCount
+	}
+	// Set Size from Backup aggregation when store didn't provide backupsSize
+	if total > 0 {
+		if b.Size == "" || b.Size == "—" {
+			b.Size = formatBytes(total)
+		}
+	} else if backupCount > 0 {
+		// Have backups but no size reported — show count so it matches "N backups stored"
+		if b.Size == "" || b.Size == "—" {
+			b.Size = fmt.Sprintf("%d backup(s)", b.TotalBackups)
+		}
+	} else if len(s.backupSizes[clusterKey]) == 0 {
+		if b.Size == "" || b.Size == "—" {
+			b.Size = "—"
+		}
+	}
+	copy := *b
+	go s.broadcast(Event{Type: EventUpdated, ResourceKind: ResourceBarman, Resource: &copy})
+}
+
+func formatBytes(n int64) string {
+	q := resource.NewQuantity(n, resource.BinarySI)
+	return q.String()
+}
+
 // AddBarman adds or updates a barman object store and broadcasts the event.
+// If we have cached ScheduledBackup entries for this namespace, we apply the
+// matching schedule to this store. If we have Backup-derived count/size for a
+// cluster that uses this store, we apply those too (so "N backups" shows when
+// the store was added after Backups existed).
 func (s *Store) AddBarman(b *BarmanItem) {
 	k := key(b.Namespace, b.Name)
 	s.mu.Lock()
 	_, existed := s.barmans[k]
 	s.barmans[k] = b
+	// Apply any cached ScheduledBackup entry for this namespace that targets this store
+	for clusterName, entry := range s.schedCache[b.Namespace] {
+		if entry != nil && s.resolveBarmanKeyForCluster(b.Namespace, clusterName) == k {
+			b.ScheduledBackup = entry.Schedule
+			if entry.LastScheduleTime != "" {
+				b.LastBackup = entry.LastScheduleTime
+				b.LastBackupStatus = "Completed"
+			}
+			break
+		}
+	}
+	// Apply backup count/size from Backup CRs when this store backs a cluster that already has Backups
+	for clusterKey, sizes := range s.backupSizes {
+		ns, clusterName, ok := parseClusterKey(clusterKey)
+		if !ok || ns != b.Namespace || s.resolveBarmanKeyForCluster(ns, clusterName) != k {
+			continue
+		}
+		n := len(sizes)
+		if n > 0 {
+			// Prefer the higher count (CR may report status.backupsCount; our cache may have fewer)
+			if n > b.TotalBackups {
+				b.TotalBackups = n
+			}
+			if b.Size == "" || b.Size == "—" {
+				var total int64
+				for _, sz := range sizes {
+					total += sz
+				}
+				if total > 0 {
+					b.Size = formatBytes(total)
+				} else {
+					// Use TotalBackups so "N backup(s)" matches the displayed backup count
+					b.Size = fmt.Sprintf("%d backup(s)", b.TotalBackups)
+				}
+			}
+		}
+		break
+	}
+	// Keep "N backup(s)" in sync with TotalBackups when we don't have real size (CR may have updated count)
+	if b.TotalBackups > 0 && sizeIsFallback(b.Size) {
+		b.Size = fmt.Sprintf("%d backup(s)", b.TotalBackups)
+	}
 	s.mu.Unlock()
 	evType := EventAdded
 	if existed {
 		evType = EventUpdated
 	}
 	s.broadcast(Event{Type: evType, ResourceKind: ResourceBarman, Resource: b})
+}
+
+// sizeIsFallback is true when Size is empty, "—", or the "N backup(s)" placeholder (not a real size like "10Gi").
+func sizeIsFallback(size string) bool {
+	if size == "" || size == "—" {
+		return true
+	}
+	return strings.HasSuffix(size, " backup(s)")
 }
 
 // DeleteBarman removes a barman object store and broadcasts the event.
@@ -316,17 +566,18 @@ func ClusterFromUnstructured(obj *unstructured.Unstructured) *ClusterItem {
 	ns := obj.GetNamespace()
 
 	cluster := &ClusterItem{
-		Name:            name,
-		Namespace:       ns,
-		Status:          "Unknown",
-		PostgresVersion: "15",
-		Age:             "—",
-		Instances:       1,
-		ReadyInstances:  0,
-		Storage:         "—",
-		PrimaryNode:     "—",
-		BackupEnabled:   false,
-		Nodes:           []NodeInfo{},
+		Name:             name,
+		Namespace:        ns,
+		Status:           "Unknown",
+		PostgresVersion:  "15",
+		Age:              "—",
+		Instances:        1,
+		ReadyInstances:   0,
+		Storage:          "—",
+		PrimaryNode:      "—",
+		BackupEnabled:    false,
+		BarmanObjectName: "",
+		Nodes:            []NodeInfo{},
 	}
 
 	if v, ok := spec["instances"]; ok {
@@ -384,9 +635,27 @@ func ClusterFromUnstructured(obj *unstructured.Unstructured) *ClusterItem {
 		cluster.Age = formatAge(obj.GetCreationTimestamp().Time)
 	}
 
-	// Backup enabled if barman configuration exists
+	// Backup enabled if barman configuration exists (in-tree) or plugin is configured.
 	if _, ok := spec["backup"]; ok {
 		cluster.BackupEnabled = true
+	}
+	if plugins, ok := spec["plugins"].([]interface{}); ok {
+		for _, p := range plugins {
+			pm, ok := p.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if name, _ := pm["name"].(string); name != "barman-cloud.cloudnative-pg.io" {
+				continue
+			}
+			if params, ok := pm["parameters"].(map[string]interface{}); ok {
+				if bo, ok := params["barmanObjectName"].(string); ok && bo != "" {
+					cluster.BarmanObjectName = bo
+					cluster.BackupEnabled = true
+					break
+				}
+			}
+		}
 	}
 
 	// Build nodes from instanceNames, instancesStatus, or cluster-name-N fallback
@@ -440,6 +709,9 @@ func BarmanFromUnstructured(obj *unstructured.Unstructured) *BarmanItem {
 	if v, ok := spec["destinationPath"]; ok {
 		if str, ok := v.(string); ok {
 			barman.Endpoint = str
+			if strings.HasPrefix(str, "rustfs://") {
+				barman.DestinationType = "RustFS"
+			}
 		}
 	}
 	if v, ok := spec["s3Credentials"]; ok {
@@ -475,6 +747,11 @@ func BarmanFromUnstructured(obj *unstructured.Unstructured) *BarmanItem {
 			barman.WalEnabled = true
 		}
 	}
+	if enc := readEncryptionFromSpec(spec); enc != "" {
+		barman.Encryption = enc
+	} else {
+		barman.Encryption = "None"
+	}
 	if v, ok := status["lastBackup"]; ok {
 		if str, ok := v.(string); ok {
 			barman.LastBackup = str
@@ -497,6 +774,39 @@ func BarmanFromUnstructured(obj *unstructured.Unstructured) *BarmanItem {
 	}
 
 	return barman
+}
+
+// readEncryptionFromSpec extracts encryption from a spec or configuration map.
+// Tries: encryption, s3Encryption, data.encryption, wal.encryption (BarmanObjectStore and plugin ObjectStore).
+func readEncryptionFromSpec(m map[string]interface{}) string {
+	if m == nil {
+		return ""
+	}
+	if v, ok := m["encryption"]; ok {
+		if s, ok := v.(string); ok && s != "" {
+			return s
+		}
+	}
+	if v, ok := m["s3Encryption"]; ok {
+		if s, ok := v.(string); ok && s != "" {
+			return s
+		}
+	}
+	if v, ok := m["data"]; ok {
+		if d, ok := v.(map[string]interface{}); ok {
+			if s, ok := d["encryption"].(string); ok && s != "" {
+				return s
+			}
+		}
+	}
+	if v, ok := m["wal"]; ok {
+		if w, ok := v.(map[string]interface{}); ok {
+			if s, ok := w["encryption"].(string); ok && s != "" {
+				return s
+			}
+		}
+	}
+	return ""
 }
 
 // ObjectStoreFromUnstructured converts a Barman Cloud plugin ObjectStore CR (barmancloud.cnpg.io/v1) to BarmanItem.
@@ -533,6 +843,9 @@ func ObjectStoreFromUnstructured(obj *unstructured.Unstructured) *BarmanItem {
 	if v, ok := config["destinationPath"]; ok {
 		if str, ok := v.(string); ok {
 			barman.Endpoint = str
+			if strings.HasPrefix(str, "rustfs://") {
+				barman.DestinationType = "RustFS"
+			}
 		}
 	}
 	if _, ok := config["s3Credentials"]; ok {
@@ -546,6 +859,11 @@ func ObjectStoreFromUnstructured(obj *unstructured.Unstructured) *BarmanItem {
 	}
 	if _, ok := config["wal"]; ok {
 		barman.WalEnabled = true
+	}
+	if enc := readEncryptionFromSpec(config); enc != "" {
+		barman.Encryption = enc
+	} else {
+		barman.Encryption = "None"
 	}
 	if v, ok := status["lastBackup"]; ok {
 		if str, ok := v.(string); ok {

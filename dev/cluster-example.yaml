@@ -7,3 +7,9 @@ spec:
   instances: 1
   storage:
     size: 1Gi
+  # Backups/WAL archiving are handled via the Barman Cloud plugin ObjectStore (see plugins/barmanObjectName)
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: rustfs-s3

@@ -1,0 +1,18 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: cluster-example-rustfs-daily
+  namespace: default
+spec:
+  # Run a backup every day at 01:00
+  schedule: "0 1 * * *"
+  # Target CNPG Cluster
+  cluster:
+    name: cluster-example
+  # Plugin-based backup (cluster uses barmanObjectName: rustfs-s3, not spec.backup)
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  # Start a backup immediately once this resource is created
+  immediate: true
+

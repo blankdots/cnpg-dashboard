@@ -1,0 +1,24 @@
+# RustFS for local dev (Tilt + kind). Standalone = one pod, one PVC.
+# S3 API: http://rustfs-svc.rustfs.svc.cluster.local:9000 (service name = rustfs-svc)
+# Default credentials: access_key=rustfsadmin, secret_key=rustfsadmin
+
+mode:
+  standalone:
+    enabled: true
+  distributed:
+    enabled: false
+
+replicaCount: 1
+
+# kind cluster usually has "standard" StorageClass
+storageclass:
+  name: standard
+
+# Ingress won't get an address without a controller; Service still works for in-cluster S3
+ingress:
+  className: nginx
+
+# Optional: override image for air-gapped or pinned version
+# image:
+#   repository: rustfs/rustfs
+#   tag: latest

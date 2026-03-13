@@ -45,6 +45,41 @@ local_resource(
   labels=['cnpg'],
 )
 
+# ── RustFS (S3-compatible object store for Barman backups) ─────────────────────
+helm_repo('rustfs', 'https://rustfs.github.io/helm/')
+helm_resource(
+  'rustfs-helm',
+  'rustfs/rustfs',
+  release_name='rustfs',
+  namespace='rustfs',
+  flags=['--create-namespace', '-f', 'dev/rustfs-values.yaml'],
+  labels=['rustfs'],
+)
+
+# Apply RustFS credentials Secret used by both Cluster backup and ObjectStore
+local_resource(
+  'apply-rustfs-credentials',
+  cmd='kubectl apply -f dev/rustfs-credentials.yaml',
+  resource_deps=['rustfs-helm'],
+  labels=['rustfs'],
+)
+
+# Apply plugin ObjectStore (rustfs-s3) so it appears in the dashboard Barman Stores tab
+local_resource(
+  'apply-rustfs-objectstore',
+  cmd='kubectl apply -f dev/objectstore-rustfs-s3.yaml',
+  resource_deps=['barman-cloud', 'apply-rustfs-credentials'],
+  labels=['rustfs'],
+)
+
+# Schedule daily backups for cluster-example using its barmanObjectStore (RustFS via S3)
+local_resource(
+  'apply-scheduled-backup-cluster-example',
+  cmd='kubectl apply -f dev/scheduledbackup-cluster-example.yaml',
+  resource_deps=['cnpg-operator', 'apply-cluster-example'],
+  labels=['cnpg'],
+)
+
 # ── metrics-server (CPU/memory per instance; kind needs --kubelet-insecure-tls) ─
 helm_repo('metrics-server', 'https://kubernetes-sigs.github.io/metrics-server/')
 helm_resource(

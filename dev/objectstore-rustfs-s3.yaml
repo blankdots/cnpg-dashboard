@@ -1,0 +1,25 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: rustfs-s3
+  namespace: default
+spec:
+  # Retention for backups stored in RustFS via S3
+  retentionPolicy: "7d"
+  configuration:
+    # S3 path in RustFS
+    destinationPath: s3://cnpg-backups/
+    # In-cluster RustFS S3 endpoint (service is rustfs-svc in namespace rustfs)
+    endpointURL: http://rustfs-svc.rustfs.svc.cluster.local:9000
+
+    s3Credentials:
+      accessKeyId:
+        name: rustfs-credentials
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: rustfs-credentials
+        key: SECRET_ACCESS_KEY
+
+    wal:
+      compression: gzip
+
