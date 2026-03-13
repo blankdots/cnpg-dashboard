@@ -121,9 +121,15 @@ function DraggableRow({ row, setSelected, isLast }) {
       {row.getVisibleCells().map((cell) => (
         <td
           key={cell.id}
-          style={{ padding: "14px 20px" }}
+          style={{
+            padding: "14px 20px",
+            overflow: "hidden",
+            verticalAlign: "middle",
+          }}
           onClick={cell.column.id === "actions" ? (e) => e.stopPropagation() : undefined}>
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          <div style={{ minWidth: 0, overflow: "hidden" }}>
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </div>
         </td>
       ))}
     </tr>
@@ -242,14 +248,29 @@ export function ClustersDataTable({ data, setSelected, send }) {
           sensors={sensors}>
           <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
             <colgroup>
-              {table.getVisibleLeafColumns().map((col) => (
-                <col
-                  key={col.id}
-                  style={{
-                    width: col.id === "drag" ? 48 : col.id === "cluster" ? "28%" : col.id === "actions" ? 56 : undefined,
-                  }}
-                />
-              ))}
+              {table.getVisibleLeafColumns().map((col) => {
+                const widths = {
+                  drag: 48,
+                  cluster: "22%",
+                  namespace: "10%",
+                  status: 160,
+                  instances: 88,
+                  postgresVersion: 120,
+                  storage: 80,
+                  backups: 72,
+                  age: 72,
+                  actions: 56,
+                };
+                return (
+                  <col
+                    key={col.id}
+                    style={{
+                      width: widths[col.id],
+                      minWidth: typeof widths[col.id] === "number" ? widths[col.id] : undefined,
+                    }}
+                  />
+                );
+              })}
             </colgroup>
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (

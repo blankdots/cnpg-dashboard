@@ -39,6 +39,7 @@ const CONN_CONNECTING = "connecting";
 const CONN_CONNECTED = "connected";
 const CONN_ERROR = "error";
 const MSG_EVENT = "event";
+const MSG_FULL_STATE = "full_state";
 const RESOURCE_CLUSTERS = "clusters";
 const RESOURCE_OBJECTSTORES = "objectstores";
 
@@ -112,8 +113,11 @@ function useWS() {
             } else if (resourceKind === RESOURCE_OBJECTSTORES) {
               setBarmans(prev => applyEvent(prev, type, key, resource));
             }
+          } else if (msg.type === MSG_FULL_STATE && msg.payload) {
+            // Refresh after backend had time to sync (e.g. backup count/size after restart)
+            if (Array.isArray(msg.payload.clusters)) setClusters(msg.payload.clusters);
+            if (Array.isArray(msg.payload.objectstores)) setBarmans(msg.payload.objectstores);
           }
-          // ack and error frames can be handled here as new actions are added
         } catch (_) {}
       };
 

@@ -30,9 +30,28 @@ const StatusBadge = ({ status }) => {
   const display = typeof status === "string" && status.length > STATUS_MAX_LENGTH ? status.slice(0, STATUS_MAX_LENGTH) + "…" : status;
   const title = typeof status === "string" && status.length > STATUS_MAX_LENGTH ? status : undefined;
   return (
-    <span title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 8px", borderRadius: 999, fontSize: 12, fontWeight: 500, background: s.bg, border: `1px solid ${s.border}`, color: s.text, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+    <span
+      title={title}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "2px 8px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 500,
+        background: s.bg,
+        border: `1px solid ${s.border}`,
+        color: s.text,
+        maxWidth: "100%",
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        boxSizing: "border-box",
+      }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
-      {display}
+      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{display}</span>
     </span>
   );
 };
@@ -75,7 +94,11 @@ export function createClusterColumns({ setSelected, send }) {
       id: "status",
       accessorKey: "status",
       header: "Status",
-      cell: ({ getValue }) => <SB status={getValue()} />,
+      cell: ({ getValue }) => (
+        <div style={{ minWidth: 0, overflow: "hidden" }}>
+          <SB status={getValue()} />
+        </div>
+      ),
       enableSorting: true,
     },
     {
@@ -85,10 +108,10 @@ export function createClusterColumns({ setSelected, send }) {
       cell: ({ row }) => {
         const c = row.original;
         return (
-          <>
+          <div style={{ display: "inline-flex", alignItems: "baseline", gap: 2, whiteSpace: "nowrap" }}>
             <span style={{ fontSize: 15, fontWeight: 700, fontFamily: "monospace", color: c.readyInstances < c.instances ? "#fbbf24" : "var(--cnpg-text-secondary)" }}>{c.readyInstances}</span>
             <span style={{ fontSize: 12, color: "var(--cnpg-text-muted)" }}> / {c.instances}</span>
-          </>
+          </div>
         );
       },
       enableSorting: true,
